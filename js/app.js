@@ -7,6 +7,7 @@ import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/
 import { renderLogin } from './views/loginView.js';
 import { renderDashboard } from './views/dashboardView.js';
 import { renderProducts } from './views/productsView.js';
+import { renderSale } from './views/saleView.js';
 
 const content = document.getElementById('app-content');
 const navItems = document.querySelectorAll('.nav-item');
@@ -15,7 +16,7 @@ const bottomNav = document.querySelector('.bottom-nav');
 const views = {
   dashboard: renderDashboard,
   products: renderProducts,
-  sale: renderComingSoon,
+  sale: renderSale,
   reports: renderComingSoon,
   more: renderComingSoon
 };
