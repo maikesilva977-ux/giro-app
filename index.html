@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GIRO</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>GIRO</h1>
+  </header>
+
+  <main id="app-content" class="app-content">
+    <!-- O conteúdo das telas (Dashboard, Produtos) será inserido aqui via JavaScript -->
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-view="dashboard">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-label">Início</span>
+    </button>
+    <button class="nav-item" data-view="products">
+      <span class="nav-icon">📦</span>
+      <span class="nav-label">Produtos</span>
+    </button>
+    <button class="nav-item nav-highlight" data-view="sale">
+      <span class="nav-icon">＋</span>
+      <span class="nav-label">Venda</span>
+    </button>
+    <button class="nav-item" data-view="reports">
+      <span class="nav-icon">📊</span>
+      <span class="nav-label">Relatórios</span>
+    </button>
+    <button class="nav-item" data-view="more">
+      <span class="nav-icon">☰</span>
+      <span class="nav-label">Mais</span>
+    </button>
+  </nav>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
