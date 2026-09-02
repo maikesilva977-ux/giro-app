@@ -1,0 +1,89 @@
+html, body {
+  height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Cabeçalho */
+.app-header {
+  padding: var(--spacing-md);
+  background-color: var(--color-bg);
+}
+
+.app-header h1 {
+  font-size: 1.5rem;
+  color: var(--color-accent);
+}
+
+/* Área de conteúdo */
+.app-content {
+  flex: 1;
+  padding: var(--spacing-md);
+  padding-bottom: 90px; /* espaço para não ficar atrás da navegação */
+  overflow-y: auto;
+}
+
+/* Navegação inferior */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  background-color: var(--color-surface);
+  padding: var(--spacing-sm) 0;
+  border-top: 1px solid var(--color-surface-alt);
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+  padding: var(--spacing-xs);
+}
+
+.nav-item.active {
+  color: var(--color-accent);
+}
+
+.nav-icon {
+  font-size: 1.3rem;
+}
+
+/* Destaque do botão de nova venda */
+.nav-highlight {
+  background-color: var(--color-accent);
+  color: #0a0a0a;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: -20px;
+  box-shadow: 0 4px 10px rgba(34, 197, 94, 0.4);
+}
+
+.nav-highlight .nav-label {
+  display: none;
+}
+
+.nav-highlight .nav-icon {
+  font-size: 1.6rem;
+}
+
+/* Grade do dashboard */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+}
