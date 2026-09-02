@@ -1,12 +1,16 @@
 // app.js
-// Ponto de entrada do GIRO. Controla qual tela está visível
+// Ponto de entrada do GIRO. Controla login, qual tela está visível
 // e conecta a navegação inferior às views.
 
+import { auth } from './data/firebaseConfig.js';
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { renderLogin } from './views/loginView.js';
 import { renderDashboard } from './views/dashboardView.js';
 import { renderProducts } from './views/productsView.js';
 
 const content = document.getElementById('app-content');
 const navItems = document.querySelectorAll('.nav-item');
+const bottomNav = document.querySelector('.bottom-nav');
 
 const views = {
   dashboard: renderDashboard,
@@ -38,5 +42,15 @@ navItems.forEach(item => {
   });
 });
 
-// Tela inicial ao carregar o app
-navigateTo('dashboard');
+// Controla se mostra login ou o app
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    bottomNav.style.display = 'flex';
+    navigateTo('dashboard');
+  } else {
+    bottomNav.style.display = 'none';
+    renderLogin(content, () => {
+      // onSuccess é chamado automaticamente pelo onAuthStateChanged
+    });
+  }
+});
