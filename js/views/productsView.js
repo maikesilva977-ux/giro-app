@@ -1,10 +1,12 @@
 // productsView.js
 // Lista, cadastro, edição e exclusão de produtos.
 
-import { productStore } from '../data/productStore.js';
+import { productStoreFirebase as productStore } from '../data/productStoreFirebase.js';
 
-export function renderProducts(container) {
-  const products = productStore.getAll();
+export async function renderProducts(container) {
+  container.innerHTML = `<div class="coming-soon">Carregando produtos...</div>`;
+
+  const products = await productStore.getAll();
 
   container.innerHTML = `
     <button class="btn-primary" id="btn-new-product">+ Novo produto</button>
@@ -24,7 +26,7 @@ export function renderProducts(container) {
   container.querySelectorAll('.product-item').forEach(item => {
     item.addEventListener('click', () => {
       const id = item.dataset.id;
-      const product = productStore.getAll().find(p => p.id === id);
+      const product = products.find(p => p.id === id);
       showProductForm(container, product);
     });
   });
@@ -86,7 +88,7 @@ function showProductForm(container, product = null) {
     </div>
   `;
 
-  document.getElementById('btn-save-product').addEventListener('click', () => {
+  document.getElementById('btn-save-product').addEventListener('click', async () => {
     const data = {
       name: document.getElementById('f-name').value,
       category: document.getElementById('f-category').value,
@@ -98,17 +100,17 @@ function showProductForm(container, product = null) {
     };
 
     if (isEditing) {
-      productStore.update(product.id, data);
+      await productStore.update(product.id, data);
     } else {
-      productStore.add(data);
+      await productStore.add(data);
     }
 
     renderProducts(container);
   });
 
   if (isEditing) {
-    document.getElementById('btn-delete-product').addEventListener('click', () => {
-      productStore.remove(product.id);
+    document.getElementById('btn-delete-product').addEventListener('click', async () => {
+      await productStore.remove(product.id);
       renderProducts(container);
     });
   }
