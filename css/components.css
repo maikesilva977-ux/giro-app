@@ -1,0 +1,83 @@
+/* Cartão genérico */
+.card {
+  background-color: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+}
+
+.card-title {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.card-value {
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.card-value.positive {
+  color: var(--color-success);
+}
+
+/* Botão primário */
+.btn-primary {
+  background-color: var(--color-accent);
+  color: #0a0a0a;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  width: 100%;
+}
+
+/* Lista de produtos */
+.product-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.product-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+}
+
+.product-item-name {
+  font-weight: 600;
+}
+
+.product-item-detail {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+/* Formulário */
+.form-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.form-label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.form-input {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface-alt);
+  color: var(--color-text-primary);
+}
+
+/* Mensagem "em breve" */
+.coming-soon {
+  text-align: center;
+  color: var(--color-text-secondary);
+  padding: var(--spacing-xl);
+}
