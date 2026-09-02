@@ -6,7 +6,18 @@ import { productStoreFirebase as productStore } from '../data/productStoreFireba
 export async function renderProducts(container) {
   container.innerHTML = `<div class="coming-soon">Carregando produtos...</div>`;
 
-  const products = await productStore.getAll();
+  let products;
+  try {
+    products = await productStore.getAll();
+  } catch (error) {
+    container.innerHTML = `
+      <div class="coming-soon" style="color: var(--color-danger);">
+        Erro ao carregar produtos:<br>${error.message}
+      </div>
+    `;
+    console.error(error);
+    return;
+  }
 
   container.innerHTML = `
     <button class="btn-primary" id="btn-new-product">+ Novo produto</button>
@@ -81,6 +92,7 @@ function showProductForm(container, product = null) {
         <label class="form-label">Estoque mínimo</label>
         <input class="form-input" id="f-min-stock" type="number" value="${product?.minStock || ''}">
       </div>
+      <div id="product-error" style="color: var(--color-danger); margin-bottom: 12px; font-size: 0.85rem;"></div>
       <button class="btn-primary" id="btn-save-product">
         ${isEditing ? 'Salvar alterações' : 'Cadastrar produto'}
       </button>
@@ -89,6 +101,9 @@ function showProductForm(container, product = null) {
   `;
 
   document.getElementById('btn-save-product').addEventListener('click', async () => {
+    const errorEl = document.getElementById('product-error');
+    errorEl.textContent = '';
+
     const data = {
       name: document.getElementById('f-name').value,
       category: document.getElementById('f-category').value,
@@ -99,19 +114,29 @@ function showProductForm(container, product = null) {
       minStock: document.getElementById('f-min-stock').value
     };
 
-    if (isEditing) {
-      await productStore.update(product.id, data);
-    } else {
-      await productStore.add(data);
+    try {
+      if (isEditing) {
+        await productStore.update(product.id, data);
+      } else {
+        await productStore.add(data);
+      }
+      renderProducts(container);
+    } catch (error) {
+      errorEl.textContent = error.message;
+      console.error(error);
     }
-
-    renderProducts(container);
   });
 
   if (isEditing) {
     document.getElementById('btn-delete-product').addEventListener('click', async () => {
-      await productStore.remove(product.id);
-      renderProducts(container);
+      try {
+        await productStore.remove(product.id);
+        renderProducts(container);
+      } catch (error) {
+        const errorEl = document.getElementById('product-error');
+        errorEl.textContent = error.message;
+        console.error(error);
+      }
     });
   }
 }
