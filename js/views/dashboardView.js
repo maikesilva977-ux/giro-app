@@ -1,6 +1,7 @@
 // dashboardView.js
 // Tela inicial (Dashboard). Mostra o resumo do mês atual,
 // a comparação com o mês anterior, e um resumo do Caixa.
+// Ignora vendas canceladas em todos os cálculos.
 
 import { productStoreFirebase as productStore } from '../data/productStoreFirebase.js';
 import { saleStore } from '../data/saleStore.js';
@@ -16,11 +17,13 @@ export async function renderDashboard(container) {
   container.innerHTML = `<div class="coming-soon">Carregando resumo...</div>`;
 
   try {
-    const [products, sales, balance] = await Promise.all([
+    const [products, allSales, balance] = await Promise.all([
       productStore.getAll(),
       saleStore.getAll(),
       cashStore.getBalance()
     ]);
+
+    const sales = allSales.filter(s => s.status !== 'cancelled');
 
     const now = new Date();
     const currentMonth = now.getMonth();
