@@ -2,6 +2,7 @@
 // Fechamento mensal: calcula os números do mês (faturamento, custos,
 // despesas, lucro), permite distribuir o lucro entre as gavetas do
 // caixa, e salva um registro permanente (nunca editado depois).
+// Ignora vendas canceladas.
 
 import { db, auth } from './firebaseConfig.js';
 import {
@@ -40,10 +41,12 @@ async function getAllClosings() {
 }
 
 async function calculateMonthStats(year, month) {
-  const [sales, expenses] = await Promise.all([
+  const [allSales, expenses] = await Promise.all([
     saleStore.getAll(),
     expenseStore.getAll()
   ]);
+
+  const sales = allSales.filter(s => s.status !== 'cancelled');
 
   const salesInMonth = sales.filter(s => {
     const d = new Date(s.date);
@@ -118,7 +121,6 @@ async function closeMonth({ year, month, distribution }) {
 
     transaction.set(balanceRef, updatedBalance);
 
-    // Registra cada transferência de distribuição no histórico de movimentações
     if (reinvestment > 0) {
       const txRef = doc(db, 'cashTransactions', `closing_${uid}_${year}-${month}_reinvestment`);
       transaction.set(txRef, {
