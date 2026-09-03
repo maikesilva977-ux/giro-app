@@ -1,23 +1,22 @@
 // alertStore.js
 // Calcula os alertas do GIRO a partir dos produtos e vendas existentes.
-// Não salva nada no Firestore — os alertas são sempre recalculados
-// na hora, a partir dos dados atuais.
+// Ignora vendas canceladas.
 
 import { productStoreFirebase as productStore } from './productStoreFirebase.js';
 import { saleStore } from './saleStore.js';
 
 const STALLED_DAYS_THRESHOLD = 30;
-const MIN_DAYS_TO_CONSIDER = 15; // evita alarmar produtos recém-cadastrados
+const MIN_DAYS_TO_CONSIDER = 15;
 
 async function getAlerts() {
-  const [products, sales] = await Promise.all([
+  const [products, allSales] = await Promise.all([
     productStore.getAll(),
     saleStore.getAll()
   ]);
 
+  const sales = allSales.filter(s => s.status !== 'cancelled');
   const now = new Date();
 
-  // Data da última venda de cada produto
   const lastSaleByProduct = {};
   sales.forEach(sale => {
     const saleDate = new Date(sale.date);
@@ -40,7 +39,6 @@ async function getAlerts() {
       const createdAt = new Date(p.createdAt);
       const daysSinceCreated = (now - createdAt) / 86400000;
 
-      // Só considera produtos cadastrados há tempo suficiente
       if (daysSinceCreated < MIN_DAYS_TO_CONSIDER) return false;
 
       const lastSale = lastSaleByProduct[p.id];
