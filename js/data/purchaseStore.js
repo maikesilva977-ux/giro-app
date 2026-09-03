@@ -1,19 +1,18 @@
 // purchaseStore.js
-// Camada de dados das compras, usando Firestore.
-// Sempre que uma compra é registrada, o estoque do produto aumenta
-// e o custo médio do produto é recalculado.
+// Camada de dados das compras. Ao registrar uma compra, dentro de uma
+// única transação atômica: cria a compra, atualiza estoque/custo médio
+// do produto e debita o valor total do caixa (operacional).
 
 import { db, auth } from './firebaseConfig.js';
 import {
   collection,
-  addDoc,
-  getDocs,
   doc,
-  updateDoc,
-  getDoc,
+  getDocs,
+  runTransaction,
   query,
   where
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { cashStore } from './cashStore.js';
 
 function getPurchasesCollectionRef() {
   return collection(db, 'purchases');
@@ -45,55 +44,66 @@ async function add(purchase) {
     throw new Error('Quantidade deve ser maior que zero');
   }
 
-  // Custo total desta compra (incluindo frete e outras despesas)
   const totalCost = (unitPrice * quantity) + shipping + otherExpenses;
-  // Custo por unidade desta compra específica (para calcular a média depois)
-  const effectiveUnitCost = totalCost / quantity;
 
-  // Busca o produto para atualizar estoque e custo médio
   const productRef = doc(db, 'products', purchase.productId);
-  const productSnap = await getDoc(productRef);
+  const purchaseRef = doc(collection(db, 'purchases'));
 
-  if (!productSnap.exists()) {
-    throw new Error('Produto não encontrado');
-  }
+  return runTransaction(db, async (transaction) => {
+    const productSnap = await transaction.get(productRef);
 
-  const product = productSnap.data();
-  const currentStock = Number(product.quantity) || 0;
-  const currentPurchasePrice = Number(product.purchasePrice) || 0;
+    if (!productSnap.exists()) {
+      throw new Error('Produto não encontrado');
+    }
 
-  // Custo médio ponderado:
-  // (estoque atual x custo atual + nova quantidade x custo desta compra) / novo total
-  const currentTotalValue = currentStock * currentPurchasePrice;
-  const newTotalValue = currentTotalValue + totalCost;
-  const newStock = currentStock + quantity;
-  const newAveragePurchasePrice = newStock > 0 ? newTotalValue / newStock : effectiveUnitCost;
+    const product = productSnap.data();
+    const currentStock = Number(product.quantity) || 0;
+    const currentPurchasePrice = Number(product.purchasePrice) || 0;
 
-  const newPurchase = {
-    ownerId: uid,
-    productId: purchase.productId,
-    productName: product.name,
-    quantity,
-    unitPrice,
-    shipping,
-    otherExpenses,
-    totalCost,
-    supplier: purchase.supplier || '',
-    date: purchase.date || new Date().toISOString(),
-    notes: purchase.notes || '',
-    createdAt: new Date().toISOString()
-  };
+    const cashState = await cashStore.readCashState(transaction, uid, 'purchase', purchaseRef.id);
 
-  // Salva a compra
-  const docRef = await addDoc(getPurchasesCollectionRef(), newPurchase);
+    const currentTotalValue = currentStock * currentPurchasePrice;
+    const newTotalValue = currentTotalValue + totalCost;
+    const newStock = currentStock + quantity;
+    const newAveragePurchasePrice = newStock > 0
+      ? newTotalValue / newStock
+      : (quantity > 0 ? totalCost / quantity : 0);
 
-  // Atualiza o produto: novo estoque e novo custo médio
-  await updateDoc(productRef, {
-    quantity: newStock,
-    purchasePrice: Number(newAveragePurchasePrice.toFixed(2))
+    const newPurchase = {
+      ownerId: uid,
+      productId: purchase.productId,
+      productName: product.name,
+      quantity,
+      unitPrice,
+      shipping,
+      otherExpenses,
+      totalCost,
+      supplier: purchase.supplier || '',
+      date: purchase.date || new Date().toISOString(),
+      notes: purchase.notes || '',
+      createdAt: new Date().toISOString()
+    };
+
+    transaction.set(purchaseRef, newPurchase);
+
+    transaction.update(productRef, {
+      quantity: newStock,
+      purchasePrice: Number(newAveragePurchasePrice.toFixed(2))
+    });
+
+    cashStore.applyCashMovement(transaction, cashState, {
+      uid,
+      type: 'purchase',
+      direction: 'debit',
+      amount: totalCost,
+      category: 'operational',
+      sourceCollection: 'purchases',
+      sourceId: purchaseRef.id,
+      date: newPurchase.date
+    });
+
+    return { id: purchaseRef.id, ...newPurchase };
   });
-
-  return { id: docRef.id, ...newPurchase };
 }
 
 export const purchaseStore = {
