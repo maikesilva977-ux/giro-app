@@ -1,6 +1,6 @@
 // moreView.js
 // Tela "Mais" — menu com funções secundárias:
-// Compra, Alertas, Insights, Calculadora e Sair.
+// Caixa, Compra, Alertas, Insights, Calculadora e Sair.
 
 import { auth } from '../data/firebaseConfig.js';
 import { signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -8,10 +8,14 @@ import { renderPurchase } from './purchaseView.js';
 import { renderAlerts } from './alertsView.js';
 import { renderInsights } from './insightsView.js';
 import { renderCalculator } from './calculatorView.js';
+import { renderCash } from './cashView.js';
 
 export function renderMore(container) {
   container.innerHTML = `
     <div class="product-list">
+      <div class="product-item" id="menu-cash">
+        <div class="product-item-name">💰 Caixa</div>
+      </div>
       <div class="product-item" id="menu-purchase">
         <div class="product-item-name">📥 Registrar compra</div>
       </div>
@@ -30,6 +34,11 @@ export function renderMore(container) {
     </div>
     <div id="more-subview" style="margin-top: 16px;"></div>
   `;
+
+  document.getElementById('menu-cash').addEventListener('click', () => {
+    const subview = document.getElementById('more-subview');
+    renderCash(subview);
+  });
 
   document.getElementById('menu-purchase').addEventListener('click', () => {
     const subview = document.getElementById('more-subview');
