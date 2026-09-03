@@ -3,16 +3,20 @@
 // e o histórico de movimentações (cashTransactions).
 //
 // As funções readCashState/applyCashMovement devem ser chamadas DENTRO
-// de uma runTransaction já aberta pelo saleStore/purchaseStore.
+// de uma runTransaction já aberta pelo saleStore/purchaseStore/expenseStore.
 //
-// getBalance é uma leitura simples, usada só para exibir na tela.
+// getBalance é uma leitura simples, usada para exibir na tela.
 // transfer move dinheiro entre categorias, sem alterar o total do caixa.
+// withdraw retira dinheiro de fato do caixa (reduz total e netSalaryReserved).
 
 import { db, auth } from './firebaseConfig.js';
 import {
   doc,
   getDoc,
+  getDocs,
   collection,
+  query,
+  where,
   runTransaction
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -83,7 +87,6 @@ function applyCashMovement(transaction, cashState, {
   });
 }
 
-// Leitura simples do saldo, para exibir na tela (fora de transação)
 async function getBalance() {
   const uid = auth.currentUser?.uid;
   if (!uid) return emptyBalance(null);
@@ -94,7 +97,16 @@ async function getBalance() {
 
 const VALID_CATEGORIES = ['operational', 'reinvestment', 'reserve', 'netSalaryReserved'];
 
-// Move dinheiro entre categorias. Não altera o total do caixa.
+function categoryLabel(category) {
+  const labels = {
+    operational: 'Operação',
+    reinvestment: 'Reinvestimento',
+    reserve: 'Reserva',
+    netSalaryReserved: 'Salário líquido'
+  };
+  return labels[category] || category;
+}
+
 async function transfer({ fromCategory, toCategory, amount, notes }) {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error('Usuário não autenticado');
@@ -153,14 +165,72 @@ async function transfer({ fromCategory, toCategory, amount, notes }) {
   });
 }
 
-function categoryLabel(category) {
-  const labels = {
-    operational: 'Operação',
-    reinvestment: 'Reinvestimento',
-    reserve: 'Reserva',
-    netSalaryReserved: 'Salário líquido'
-  };
-  return labels[category] || category;
+// Retirada efetiva: reduz de fato o dinheiro do caixa (netSalaryReserved e total).
+// Diferente de transfer, que só realoca entre gavetas sem sair do caixa.
+async function withdraw({ amount, notes }) {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('Usuário não autenticado');
+
+  const value = Number(amount) || 0;
+
+  if (value <= 0) {
+    throw new Error('Informe um valor maior que zero');
+  }
+
+  const balanceRef = getBalanceRef(uid);
+  const withdrawalRef = doc(collection(db, 'cashTransactions'));
+
+  return runTransaction(db, async (transaction) => {
+    const balanceSnap = await transaction.get(balanceRef);
+    const current = balanceSnap.exists() ? balanceSnap.data() : emptyBalance(uid);
+
+    const currentNetSalary = Number(current.netSalaryReserved) || 0;
+
+    if (currentNetSalary < value) {
+      throw new Error('Saldo insuficiente em Salário líquido para essa retirada');
+    }
+
+    const updatedBalance = {
+      ...current,
+      ownerId: uid,
+      netSalaryReserved: currentNetSalary - value,
+      total: (Number(current.total) || 0) - value,
+      withdrawn: (Number(current.withdrawn) || 0) + value,
+      updatedAt: new Date().toISOString()
+    };
+
+    transaction.set(balanceRef, updatedBalance);
+
+    transaction.set(withdrawalRef, {
+      ownerId: uid,
+      type: 'withdrawal',
+      direction: 'debit',
+      amount: value,
+      category: 'netSalaryReserved',
+      sourceCollection: 'withdrawals',
+      sourceId: withdrawalRef.id,
+      reversed: false,
+      notes: notes || '',
+      date: new Date().toISOString(),
+      createdAt: new Date().toISOString()
+    });
+
+    return updatedBalance;
+  });
+}
+
+async function getWithdrawalHistory() {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return [];
+
+  const q = query(
+    collection(db, 'cashTransactions'),
+    where('ownerId', '==', uid),
+    where('type', '==', 'withdrawal')
+  );
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 export const cashStore = {
@@ -170,6 +240,8 @@ export const cashStore = {
   applyCashMovement,
   getBalance,
   transfer,
+  withdraw,
+  getWithdrawalHistory,
   categoryLabel,
   VALID_CATEGORIES
 };
