@@ -1,6 +1,7 @@
 // insightStore.js
 // Gera insights automáticos a partir de vendas e produtos.
-// Sempre usa linguagem cautelosa quando há poucos dados disponíveis.
+// Ignora vendas canceladas. Sempre usa linguagem cautelosa quando
+// há poucos dados disponíveis.
 
 import { productStoreFirebase as productStore } from './productStoreFirebase.js';
 import { saleStore } from './saleStore.js';
@@ -8,10 +9,12 @@ import { saleStore } from './saleStore.js';
 const MIN_SALES_FOR_AVERAGE_COMPARISON = 3;
 
 async function getInsights() {
-  const [products, sales] = await Promise.all([
+  const [products, allSales] = await Promise.all([
     productStore.getAll(),
     saleStore.getAll()
   ]);
+
+  const sales = allSales.filter(s => s.status !== 'cancelled');
 
   const now = new Date();
   const currentMonth = now.getMonth();
@@ -33,7 +36,6 @@ async function getInsights() {
 
   const insights = [];
 
-  // Insight: faturamento comparado ao mês anterior
   const revenueThisMonth = salesThisMonth.reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
   const revenueLastMonth = salesLastMonth.reduce((sum, s) => sum + (Number(s.revenue) || 0), 0);
 
@@ -45,7 +47,6 @@ async function getInsights() {
     }
   }
 
-  // Agrupa vendas deste mês por produto
   const byProduct = {};
   salesThisMonth.forEach(sale => {
     const id = sale.productId;
@@ -58,7 +59,6 @@ async function getInsights() {
 
   const productStats = Object.values(byProduct);
 
-  // Insight: produto vendendo mais que a média (só com dados suficientes)
   if (productStats.length >= MIN_SALES_FOR_AVERAGE_COMPARISON) {
     const avgQuantity = productStats.reduce((sum, p) => sum + p.quantity, 0) / productStats.length;
     const topSeller = [...productStats].sort((a, b) => b.quantity - a.quantity)[0];
@@ -68,7 +68,6 @@ async function getInsights() {
     }
   }
 
-  // Insight: produto mais lucrativo do mês
   if (productStats.length > 0) {
     const topProfit = [...productStats].sort((a, b) => b.profit - a.profit)[0];
     if (topProfit && topProfit.profit > 0) {
@@ -76,7 +75,6 @@ async function getInsights() {
     }
   }
 
-  // Insight: produtos parados há muito tempo
   const lastSaleByProduct = {};
   sales.forEach(sale => {
     const saleDate = new Date(sale.date);
