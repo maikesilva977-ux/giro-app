@@ -9,6 +9,7 @@ import { renderDashboard } from './views/dashboardView.js';
 import { renderProducts } from './views/productsView.js';
 import { renderSale } from './views/saleView.js';
 import { renderMore } from './views/moreView.js';
+import { renderReports } from './views/reportsView.js';
 
 const content = document.getElementById('app-content');
 const navItems = document.querySelectorAll('.nav-item');
@@ -18,7 +19,7 @@ const views = {
   dashboard: renderDashboard,
   products: renderProducts,
   sale: renderSale,
-  reports: renderComingSoon,
+  reports: renderReports,
   more: renderMore
 };
 
