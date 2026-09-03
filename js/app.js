@@ -8,6 +8,7 @@ import { renderLogin } from './views/loginView.js';
 import { renderDashboard } from './views/dashboardView.js';
 import { renderProducts } from './views/productsView.js';
 import { renderSale } from './views/saleView.js';
+import { renderMore } from './views/moreView.js';
 
 const content = document.getElementById('app-content');
 const navItems = document.querySelectorAll('.nav-item');
@@ -18,7 +19,7 @@ const views = {
   products: renderProducts,
   sale: renderSale,
   reports: renderComingSoon,
-  more: renderComingSoon
+  more: renderMore
 };
 
 function renderComingSoon(container) {
