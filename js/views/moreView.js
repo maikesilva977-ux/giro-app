@@ -1,10 +1,11 @@
 // moreView.js
 // Tela "Mais" — menu com funções secundárias:
-// Compra, Alertas, Insights, e futuramente Calculadora.
+// Compra, Alertas, Insights e Calculadora.
 
 import { renderPurchase } from './purchaseView.js';
 import { renderAlerts } from './alertsView.js';
 import { renderInsights } from './insightsView.js';
+import { renderCalculator } from './calculatorView.js';
 
 export function renderMore(container) {
   container.innerHTML = `
@@ -18,8 +19,8 @@ export function renderMore(container) {
       <div class="product-item" id="menu-insights">
         <div class="product-item-name">💡 Insights</div>
       </div>
-      <div class="product-item" style="opacity: 0.5;">
-        <div class="product-item-name">🧮 Calculadora (em breve)</div>
+      <div class="product-item" id="menu-calculator">
+        <div class="product-item-name">🧮 Calculadora</div>
       </div>
     </div>
     <div id="more-subview" style="margin-top: 16px;"></div>
@@ -38,5 +39,10 @@ export function renderMore(container) {
   document.getElementById('menu-insights').addEventListener('click', () => {
     const subview = document.getElementById('more-subview');
     renderInsights(subview);
+  });
+
+  document.getElementById('menu-calculator').addEventListener('click', () => {
+    const subview = document.getElementById('more-subview');
+    renderCalculator(subview);
   });
 }
