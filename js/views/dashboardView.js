@@ -1,9 +1,11 @@
 // dashboardView.js
-// Tela inicial (Dashboard). Mostra o resumo do mês atual
-// e a comparação com o mês anterior.
+// Tela inicial (Dashboard). Mostra o resumo do mês atual,
+// a comparação com o mês anterior, e um resumo do Caixa.
 
 import { productStoreFirebase as productStore } from '../data/productStoreFirebase.js';
 import { saleStore } from '../data/saleStore.js';
+import { cashStore } from '../data/cashStore.js';
+import { renderCash } from './cashView.js';
 
 const monthNames = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -14,9 +16,10 @@ export async function renderDashboard(container) {
   container.innerHTML = `<div class="coming-soon">Carregando resumo...</div>`;
 
   try {
-    const [products, sales] = await Promise.all([
+    const [products, sales, balance] = await Promise.all([
       productStore.getAll(),
-      saleStore.getAll()
+      saleStore.getAll(),
+      cashStore.getBalance()
     ]);
 
     const now = new Date();
@@ -32,6 +35,14 @@ export async function renderDashboard(container) {
 
     const stockCount = products.reduce((sum, p) => sum + (Number(p.quantity) || 0), 0);
     const monthLabel = `${monthNames[currentMonth]} ${currentYear}`;
+
+    const total = Number(balance.total) || 0;
+    const operational = Number(balance.operational) || 0;
+    const netSalaryReserved = Number(balance.netSalaryReserved) || 0;
+
+    const operationalWarning = operational < 0
+      ? `<div style="color: var(--color-danger); font-size: 0.75rem; margin-top: 4px;">⚠️ Operação negativa</div>`
+      : '';
 
     container.innerHTML = `
       <div style="color: var(--color-text-secondary); font-size: 0.85rem; margin-bottom: 8px;">
@@ -59,6 +70,16 @@ export async function renderDashboard(container) {
         </div>
       </div>
 
+      <div class="card" style="margin-top: 16px; cursor: pointer;" id="dashboard-cash-card">
+        <div class="card-title">💰 Caixa total</div>
+        <div class="card-value positive" style="font-size: 1.5rem;">R$ ${total.toFixed(2)}</div>
+        ${operationalWarning}
+        <div style="margin-top: 10px; font-size: 0.85rem; color: var(--color-text-secondary);">
+          💸 Disponível para retirada: <strong style="color: var(--color-text-primary);">R$ ${netSalaryReserved.toFixed(2)}</strong>
+        </div>
+        <div style="margin-top: 8px; font-size: 0.75rem; color: var(--color-text-secondary);">Toque para ver o Caixa completo →</div>
+      </div>
+
       <div class="card" style="margin-top: 16px;">
         <div class="card-title" style="margin-bottom: 12px;">Comparação com ${monthNames[lastMonth]}</div>
         <div class="product-list">
@@ -81,6 +102,10 @@ export async function renderDashboard(container) {
         Gráficos e insights chegam nas próximas etapas.
       </div>
     `;
+
+    document.getElementById('dashboard-cash-card').addEventListener('click', () => {
+      renderCash(container);
+    });
   } catch (error) {
     container.innerHTML = `
       <div class="coming-soon" style="color: var(--color-danger);">
