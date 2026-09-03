@@ -2,12 +2,9 @@
 // Camada de dados do Caixa. Mantém o saldo agregado (cashBalances)
 // e o histórico de movimentações (cashTransactions).
 //
-// As funções readCashState/applyCashMovement devem ser chamadas DENTRO
-// de uma runTransaction já aberta pelo saleStore/purchaseStore/expenseStore.
-//
-// getBalance é uma leitura simples, usada para exibir na tela.
-// transfer move dinheiro entre categorias, sem alterar o total do caixa.
-// withdraw retira dinheiro de fato do caixa (reduz total e netSalaryReserved).
+// applyCashMovement é usado ao criar uma venda/compra/despesa.
+// applyReversal é usado ao cancelar uma venda/compra/despesa já existente
+// (reaproveitável também para compras, numa etapa futura).
 
 import { db, auth } from './firebaseConfig.js';
 import {
@@ -26,6 +23,10 @@ function getBalanceRef(uid) {
 
 function getTransactionRef(type, sourceId) {
   return doc(db, 'cashTransactions', `${type}_${sourceId}`);
+}
+
+function getReversalRef(sourceCollection, sourceId) {
+  return doc(db, 'cashTransactions', `reversal_${sourceCollection}_${sourceId}`);
 }
 
 function emptyBalance(uid) {
@@ -83,6 +84,57 @@ function applyCashMovement(transaction, cashState, {
     sourceId,
     reversed: false,
     date: date || new Date().toISOString(),
+    createdAt: new Date().toISOString()
+  });
+}
+
+// Lê o estado necessário para reverter uma movimentação já existente.
+async function readReversalState(transaction, uid, sourceCollection, sourceId) {
+  const balanceRef = getBalanceRef(uid);
+  const reversalRef = getReversalRef(sourceCollection, sourceId);
+
+  const balanceSnap = await transaction.get(balanceRef);
+  const reversalSnap = await transaction.get(reversalRef);
+
+  return { balanceRef, reversalRef, balanceSnap, reversalSnap };
+}
+
+// Aplica o efeito inverso de uma movimentação original (ex: uma venda
+// creditou X, o estorno debita X). Protegido contra duplicidade da
+// mesma forma que applyCashMovement.
+function applyReversal(transaction, reversalState, {
+  uid, amount, category, sourceCollection, sourceId, originalDirection
+}) {
+  const { balanceRef, reversalRef, balanceSnap, reversalSnap } = reversalState;
+
+  if (reversalSnap.exists()) {
+    return; // já estornado antes, não duplica
+  }
+
+  const current = balanceSnap.exists() ? balanceSnap.data() : emptyBalance(uid);
+  const reversalDirection = originalDirection === 'credit' ? 'debit' : 'credit';
+  const signedAmount = reversalDirection === 'credit' ? amount : -amount;
+
+  const updatedBalance = {
+    ...current,
+    ownerId: uid,
+    total: (Number(current.total) || 0) + signedAmount,
+    operational: (Number(current.operational) || 0) + signedAmount,
+    updatedAt: new Date().toISOString()
+  };
+
+  transaction.set(balanceRef, updatedBalance);
+
+  transaction.set(reversalRef, {
+    ownerId: uid,
+    type: 'reversal',
+    direction: reversalDirection,
+    amount,
+    category,
+    sourceCollection,
+    sourceId,
+    reversed: false,
+    date: new Date().toISOString(),
     createdAt: new Date().toISOString()
   });
 }
@@ -165,8 +217,6 @@ async function transfer({ fromCategory, toCategory, amount, notes }) {
   });
 }
 
-// Retirada efetiva: reduz de fato o dinheiro do caixa (netSalaryReserved e total).
-// Diferente de transfer, que só realoca entre gavetas sem sair do caixa.
 async function withdraw({ amount, notes }) {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error('Usuário não autenticado');
@@ -238,6 +288,8 @@ export const cashStore = {
   getTransactionRef,
   readCashState,
   applyCashMovement,
+  readReversalState,
+  applyReversal,
   getBalance,
   transfer,
   withdraw,
