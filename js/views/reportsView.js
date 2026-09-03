@@ -1,17 +1,21 @@
 // reportsView.js
 // Tela de Relatórios. Permite filtrar vendas por período
-// e ver faturamento, custos, lucro e ticket médio.
+// e ver faturamento, custos, lucro, ticket médio e rankings de produtos.
 
 import { saleStore } from '../data/saleStore.js';
+import { productStoreFirebase as productStore } from '../data/productStoreFirebase.js';
 
 let currentFilter = 'today';
 
 export async function renderReports(container) {
   container.innerHTML = `<div class="coming-soon">Carregando relatório...</div>`;
 
-  let sales;
+  let sales, products;
   try {
-    sales = await saleStore.getAll();
+    [sales, products] = await Promise.all([
+      saleStore.getAll(),
+      productStore.getAll()
+    ]);
   } catch (error) {
     container.innerHTML = `
       <div class="coming-soon" style="color: var(--color-danger);">
@@ -22,7 +26,7 @@ export async function renderReports(container) {
     return;
   }
 
-  renderFilteredReport(container, sales);
+  renderFilteredReport(container, sales, products);
 }
 
 function getDateRange(filter) {
@@ -61,7 +65,58 @@ function filterLabel(filter) {
   return labels[filter] || '';
 }
 
-function renderFilteredReport(container, sales) {
+function buildRankings(filteredSales, products) {
+  // Agrupa vendas por produto
+  const byProduct = {};
+
+  filteredSales.forEach(sale => {
+    const id = sale.productId;
+    if (!byProduct[id]) {
+      byProduct[id] = {
+        productId: id,
+        productName: sale.productName,
+        quantity: 0,
+        profit: 0
+      };
+    }
+    byProduct[id].quantity += Number(sale.quantity) || 0;
+    byProduct[id].profit += Number(sale.profit) || 0;
+  });
+
+  const productStats = Object.values(byProduct);
+
+  const topSelling = [...productStats]
+    .sort((a, b) => b.quantity - a.quantity)
+    .slice(0, 5);
+
+  const topProfit = [...productStats]
+    .sort((a, b) => b.profit - a.profit)
+    .slice(0, 5);
+
+  // Produtos encalhados: existem no cadastro, mas não tiveram
+  // nenhuma venda no período filtrado, e já foram cadastrados há um tempo
+  const soldProductIds = new Set(filteredSales.map(s => s.productId));
+  const stalled = products
+    .filter(p => !soldProductIds.has(p.id))
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+    .slice(0, 5);
+
+  return { topSelling, topProfit, stalled };
+}
+
+function renderRankingList(title, emptyMessage, items, renderItem) {
+  return `
+    <div class="card" style="margin-bottom: 12px;">
+      <div class="card-title" style="margin-bottom: 8px;">${title}</div>
+      ${items.length === 0
+        ? `<div style="color: var(--color-text-secondary); font-size: 0.85rem;">${emptyMessage}</div>`
+        : `<div class="product-list">${items.map(renderItem).join('')}</div>`
+      }
+    </div>
+  `;
+}
+
+function renderFilteredReport(container, sales, products) {
   const { start, end } = getDateRange(currentFilter);
 
   const filteredSales = sales.filter(sale => {
@@ -75,6 +130,8 @@ function renderFilteredReport(container, sales) {
   const numberOfSales = filteredSales.length;
   const unitsSold = filteredSales.reduce((sum, s) => sum + (Number(s.quantity) || 0), 0);
   const avgTicket = numberOfSales > 0 ? revenue / numberOfSales : 0;
+
+  const { topSelling, topProfit, stalled } = buildRankings(filteredSales, products);
 
   const filters = ['today', 'last7days', 'thisMonth', 'lastMonth'];
 
@@ -93,7 +150,7 @@ function renderFilteredReport(container, sales) {
       `).join('')}
     </div>
 
-    <div class="dashboard-grid">
+    <div class="dashboard-grid" style="margin-bottom: 16px;">
       <div class="card">
         <div class="card-title">Faturamento</div>
         <div class="card-value positive">R$ ${revenue.toFixed(2)}</div>
@@ -119,12 +176,48 @@ function renderFilteredReport(container, sales) {
         <div class="card-value">${unitsSold}</div>
       </div>
     </div>
+
+    ${renderRankingList(
+      '🏆 Mais vendidos',
+      'Nenhuma venda neste período.',
+      topSelling,
+      item => `
+        <div class="product-item">
+          <div class="product-item-name">${item.productName}</div>
+          <div class="product-item-detail">${item.quantity} un.</div>
+        </div>
+      `
+    )}
+
+    ${renderRankingList(
+      '💰 Mais lucrativos',
+      'Nenhuma venda neste período.',
+      topProfit,
+      item => `
+        <div class="product-item">
+          <div class="product-item-name">${item.productName}</div>
+          <div class="product-item-detail">R$ ${item.profit.toFixed(2)}</div>
+        </div>
+      `
+    )}
+
+    ${renderRankingList(
+      '📦 Produtos encalhados',
+      'Nenhum produto encalhado neste período.',
+      stalled,
+      item => `
+        <div class="product-item">
+          <div class="product-item-name">${item.name}</div>
+          <div class="product-item-detail">Estoque: ${item.quantity}</div>
+        </div>
+      `
+    )}
   `;
 
   container.querySelectorAll('.filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       currentFilter = btn.dataset.filter;
-      renderFilteredReport(container, sales);
+      renderFilteredReport(container, sales, products);
     });
   });
-                                     }
+}
