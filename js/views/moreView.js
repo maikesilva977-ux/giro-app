@@ -1,6 +1,6 @@
 // moreView.js
 // Tela "Mais" — menu com funções secundárias:
-// Caixa, Compra, Despesa, Alertas, Insights, Calculadora e Sair.
+// Caixa, Fechamento, Compra, Despesa, Alertas, Insights, Calculadora e Sair.
 
 import { auth } from '../data/firebaseConfig.js';
 import { signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -10,12 +10,16 @@ import { renderInsights } from './insightsView.js';
 import { renderCalculator } from './calculatorView.js';
 import { renderCash } from './cashView.js';
 import { renderExpense } from './expenseView.js';
+import { renderClosing } from './closingView.js';
 
 export function renderMore(container) {
   container.innerHTML = `
     <div class="product-list">
       <div class="product-item" id="menu-cash">
         <div class="product-item-name">💰 Caixa</div>
+      </div>
+      <div class="product-item" id="menu-closing">
+        <div class="product-item-name">📅 Fechamento mensal</div>
       </div>
       <div class="product-item" id="menu-purchase">
         <div class="product-item-name">📥 Registrar compra</div>
@@ -42,6 +46,11 @@ export function renderMore(container) {
   document.getElementById('menu-cash').addEventListener('click', () => {
     const subview = document.getElementById('more-subview');
     renderCash(subview);
+  });
+
+  document.getElementById('menu-closing').addEventListener('click', () => {
+    const subview = document.getElementById('more-subview');
+    renderClosing(subview);
   });
 
   document.getElementById('menu-purchase').addEventListener('click', () => {
