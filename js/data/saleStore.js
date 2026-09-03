@@ -1,19 +1,18 @@
 // saleStore.js
-// Camada de dados das vendas, usando Firestore.
-// Sempre que uma venda é registrada, o estoque do produto
-// correspondente é reduzido automaticamente.
+// Camada de dados das vendas. Ao registrar uma venda, dentro de uma
+// única transação atômica: cria a venda, atualiza o estoque do produto
+// e credita o valor recebido no caixa (operacional).
 
 import { db, auth } from './firebaseConfig.js';
 import {
   collection,
-  addDoc,
-  getDocs,
   doc,
-  updateDoc,
-  getDoc,
+  getDocs,
+  runTransaction,
   query,
   where
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { cashStore } from './cashStore.js';
 
 function getSalesCollectionRef() {
   return collection(db, 'sales');
@@ -39,50 +38,71 @@ async function add(sale) {
   const quantity = Number(sale.quantity) || 0;
   const salePrice = Number(sale.salePrice) || 0;
 
-  // Busca o produto para saber o preço de compra (custo) e o estoque atual
+  if (quantity <= 0) {
+    throw new Error('Quantidade deve ser maior que zero');
+  }
+
   const productRef = doc(db, 'products', sale.productId);
-  const productSnap = await getDoc(productRef);
+  const saleRef = doc(collection(db, 'sales')); // gera o ID antes de entrar na transação
 
-  if (!productSnap.exists()) {
-    throw new Error('Produto não encontrado');
-  }
+  return runTransaction(db, async (transaction) => {
+    // --- LEITURAS (sempre antes de qualquer escrita, exigência do Firestore) ---
+    const productSnap = await transaction.get(productRef);
 
-  const product = productSnap.data();
-  const purchasePrice = Number(product.purchasePrice) || 0;
-  const currentStock = Number(product.quantity) || 0;
+    if (!productSnap.exists()) {
+      throw new Error('Produto não encontrado');
+    }
 
-  if (quantity > currentStock) {
-    throw new Error('Quantidade maior que o estoque disponível');
-  }
+    const product = productSnap.data();
+    const purchasePrice = Number(product.purchasePrice) || 0;
+    const currentStock = Number(product.quantity) || 0;
 
-  const revenue = salePrice * quantity;
-  const cost = purchasePrice * quantity;
-  const profit = revenue - cost;
+    if (quantity > currentStock) {
+      throw new Error('Quantidade maior que o estoque disponível');
+    }
 
-  const newSale = {
-    ownerId: uid,
-    productId: sale.productId,
-    productName: product.name,
-    quantity,
-    salePrice,
-    paymentMethod: sale.paymentMethod || 'outro',
-    date: sale.date || new Date().toISOString(),
-    notes: sale.notes || '',
-    revenue,
-    cost,
-    profit,
-    createdAt: new Date().toISOString()
-  };
+    const cashState = await cashStore.readCashState(transaction, uid, 'sale', saleRef.id);
 
-  // Salva a venda
-  const docRef = await addDoc(getSalesCollectionRef(), newSale);
+    // --- CÁLCULOS ---
+    const revenue = salePrice * quantity;
+    const cost = purchasePrice * quantity;
+    const profit = revenue - cost;
 
-  // Atualiza o estoque do produto
-  await updateDoc(productRef, {
-    quantity: currentStock - quantity
+    const newSale = {
+      ownerId: uid,
+      productId: sale.productId,
+      productName: product.name,
+      quantity,
+      salePrice,
+      paymentMethod: sale.paymentMethod || 'outro',
+      date: sale.date || new Date().toISOString(),
+      notes: sale.notes || '',
+      revenue,
+      cost,
+      profit,
+      createdAt: new Date().toISOString()
+    };
+
+    // --- ESCRITAS ---
+    transaction.set(saleRef, newSale);
+
+    transaction.update(productRef, {
+      quantity: currentStock - quantity
+    });
+
+    cashStore.applyCashMovement(transaction, cashState, {
+      uid,
+      type: 'sale',
+      direction: 'credit',
+      amount: revenue,
+      category: 'operational',
+      sourceCollection: 'sales',
+      sourceId: saleRef.id,
+      date: newSale.date
+    });
+
+    return { id: saleRef.id, ...newSale };
   });
-
-  return { id: docRef.id, ...newSale };
 }
 
 export const saleStore = {
