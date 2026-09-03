@@ -9,6 +9,29 @@ export async function renderProducts(container) {
   let products;
   try {
     products = await productStore.getAll();
+
+    container.innerHTML = `
+      <button class="btn-primary" id="btn-new-product">+ Novo produto</button>
+
+      <div id="product-form-area"></div>
+
+      <div class="product-list" id="product-list">
+        ${products.length === 0
+          ? '<div class="coming-soon">Nenhum produto cadastrado ainda.</div>'
+          : products.map(renderProductItem).join('')}
+      </div>
+    `;
+
+    document.getElementById('btn-new-product')
+      .addEventListener('click', () => showProductForm(container));
+
+    container.querySelectorAll('.product-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const id = item.dataset.id;
+        const product = products.find(p => p.id === id);
+        showProductForm(container, product);
+      });
+    });
   } catch (error) {
     container.innerHTML = `
       <div class="coming-soon" style="color: var(--color-danger);">
@@ -16,41 +39,20 @@ export async function renderProducts(container) {
       </div>
     `;
     console.error(error);
-    return;
   }
-
-  container.innerHTML = `
-    <button class="btn-primary" id="btn-new-product">+ Novo produto</button>
-
-    <div id="product-form-area"></div>
-
-    <div class="product-list" id="product-list">
-      ${products.length === 0
-        ? '<div class="coming-soon">Nenhum produto cadastrado ainda.</div>'
-        : products.map(renderProductItem).join('')}
-    </div>
-  `;
-
-  document.getElementById('btn-new-product')
-    .addEventListener('click', () => showProductForm(container));
-
-  container.querySelectorAll('.product-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const id = item.dataset.id;
-      const product = products.find(p => p.id === id);
-      showProductForm(container, product);
-    });
-  });
 }
 
 function renderProductItem(product) {
+  const salePrice = Number(product.salePrice) || 0;
+  const quantity = Number(product.quantity) || 0;
+
   return `
     <div class="product-item" data-id="${product.id}">
       <div>
         <div class="product-item-name">${product.name}</div>
-        <div class="product-item-detail">Estoque: ${product.quantity}</div>
+        <div class="product-item-detail">Estoque: ${quantity}</div>
       </div>
-      <div class="product-item-detail">R$ ${product.salePrice.toFixed(2)}</div>
+      <div class="product-item-detail">R$ ${salePrice.toFixed(2)}</div>
     </div>
   `;
 }
@@ -139,4 +141,4 @@ function showProductForm(container, product = null) {
       }
     });
   }
-}
+                                    }
