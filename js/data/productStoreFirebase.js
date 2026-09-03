@@ -1,5 +1,5 @@
 // productStoreFirebase.js
-// Camada de dados dos produtos, agora usando Firestore.
+// Camada de dados dos produtos, usando Firestore.
 // Mantém a mesma "forma" do productStore.js (localStorage) para
 // que as views não precisem ser reescritas.
 
@@ -16,8 +16,20 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 function getCollectionRef() {
-  // Cada usuário só acessa seus próprios produtos
   return collection(db, 'products');
+}
+
+function normalizeProductData(product) {
+  return {
+    name: product.name || '',
+    category: product.category || '',
+    purchasePrice: Number(product.purchasePrice) || 0,
+    salePrice: Number(product.salePrice) || 0,
+    quantity: Number(product.quantity) || 0,
+    monitorStock: Boolean(product.monitorStock),
+    minStock: Number(product.minStock) || 0,
+    notes: product.notes || ''
+  };
 }
 
 async function getAll() {
@@ -39,14 +51,7 @@ async function add(product) {
 
   const newProduct = {
     ownerId: uid,
-    name: product.name,
-    category: product.category || '',
-    purchasePrice: Number(product.purchasePrice) || 0,
-    salePrice: Number(product.salePrice) || 0,
-    quantity: Number(product.quantity) || 0,
-    monitorStock: Boolean(product.monitorStock),
-    minStock: Number(product.minStock) || 0,
-    notes: product.notes || '',
+    ...normalizeProductData(product),
     createdAt: new Date().toISOString()
   };
 
@@ -56,8 +61,9 @@ async function add(product) {
 
 async function update(id, updatedFields) {
   const productRef = doc(db, 'products', id);
-  await updateDoc(productRef, updatedFields);
-  return { id, ...updatedFields };
+  const normalized = normalizeProductData(updatedFields);
+  await updateDoc(productRef, normalized);
+  return { id, ...normalized };
 }
 
 async function remove(id) {
