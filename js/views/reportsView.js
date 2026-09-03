@@ -1,6 +1,7 @@
 // reportsView.js
 // Tela de Relatórios. Permite filtrar vendas por período
 // e ver faturamento, custos, lucro, ticket médio e rankings de produtos.
+// Ignora vendas canceladas em todos os cálculos.
 
 import { saleStore } from '../data/saleStore.js';
 import { productStoreFirebase as productStore } from '../data/productStoreFirebase.js';
@@ -12,10 +13,12 @@ export async function renderReports(container) {
 
   let sales, products;
   try {
-    [sales, products] = await Promise.all([
+    const [allSales, allProducts] = await Promise.all([
       saleStore.getAll(),
       productStore.getAll()
     ]);
+    sales = allSales.filter(s => s.status !== 'cancelled');
+    products = allProducts;
   } catch (error) {
     container.innerHTML = `
       <div class="coming-soon" style="color: var(--color-danger);">
@@ -66,7 +69,6 @@ function filterLabel(filter) {
 }
 
 function buildRankings(filteredSales, products) {
-  // Agrupa vendas por produto
   const byProduct = {};
 
   filteredSales.forEach(sale => {
@@ -93,8 +95,6 @@ function buildRankings(filteredSales, products) {
     .sort((a, b) => b.profit - a.profit)
     .slice(0, 5);
 
-  // Produtos encalhados: existem no cadastro, mas não tiveram
-  // nenhuma venda no período filtrado, e já foram cadastrados há um tempo
   const soldProductIds = new Set(filteredSales.map(s => s.productId));
   const stalled = products
     .filter(p => !soldProductIds.has(p.id))
