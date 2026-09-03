@@ -1,6 +1,6 @@
 // app.js
-// Ponto de entrada do GIRO. Controla login, qual tela está visível
-// e conecta a navegação inferior às views.
+// Ponto de entrada do GIRO. Controla login, qual tela está visível,
+// conecta a navegação inferior às views, e registra o service worker (PWA).
 
 import { auth } from './data/firebaseConfig.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -57,3 +57,11 @@ onAuthStateChanged(auth, (user) => {
     });
   }
 });
+
+// Registra o service worker (permite instalar o GIRO como app)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js')
+      .catch(error => console.error('Erro ao registrar service worker:', error));
+  });
+}
