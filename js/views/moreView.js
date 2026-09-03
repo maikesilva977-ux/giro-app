@@ -1,7 +1,9 @@
 // moreView.js
 // Tela "Mais" — menu com funções secundárias:
-// Compra, Alertas, Insights e Calculadora.
+// Compra, Alertas, Insights, Calculadora e Sair.
 
+import { auth } from '../data/firebaseConfig.js';
+import { signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { renderPurchase } from './purchaseView.js';
 import { renderAlerts } from './alertsView.js';
 import { renderInsights } from './insightsView.js';
@@ -21,6 +23,9 @@ export function renderMore(container) {
       </div>
       <div class="product-item" id="menu-calculator">
         <div class="product-item-name">🧮 Calculadora</div>
+      </div>
+      <div class="product-item" id="menu-logout">
+        <div class="product-item-name" style="color: var(--color-danger);">🚪 Sair da conta</div>
       </div>
     </div>
     <div id="more-subview" style="margin-top: 16px;"></div>
@@ -44,5 +49,21 @@ export function renderMore(container) {
   document.getElementById('menu-calculator').addEventListener('click', () => {
     const subview = document.getElementById('more-subview');
     renderCalculator(subview);
+  });
+
+  document.getElementById('menu-logout').addEventListener('click', () => {
+    const subview = document.getElementById('more-subview');
+    subview.innerHTML = `
+      <div class="card">
+        <div style="margin-bottom: 16px;">Tem certeza que deseja sair da conta?</div>
+        <button class="btn-primary" id="btn-confirm-logout" style="background-color: var(--color-danger);">
+          Sim, sair da conta
+        </button>
+      </div>
+    `;
+
+    document.getElementById('btn-confirm-logout').addEventListener('click', () => {
+      signOut(auth);
+    });
   });
 }
